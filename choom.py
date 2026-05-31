@@ -38,6 +38,19 @@ def spinner(done, text="thinking", size=15, levels="⣀⣤⣶⣷⣿", empty=" ")
         print("\r  [" + "".join(cell(x) for x in range(size)) + "]\33[K", end="", file=sys.stderr, flush=True)
     print("\r\33[K", end="", file=sys.stderr, flush=True)
 
+def _paths(path, pattern=None):
+    p = Path(path)
+    xs = sorted(x.resolve() for x in p.rglob(pattern)) if pattern and p.exists() else []
+    return ", ".join(map(str, xs)) if pattern and xs else str(p.resolve()) if p.exists() else f"no {path} defined"
+
+def build_system_prompt(config: Config) -> str:
+    env = f"cwd={config.working_dir} os={sys.platform} py={sys.version.split()[0]} shell={os.getenv('SHELL','?')}"
+    ctx = f"readme={_paths('README.md')} agents={_paths('AGENTS.md')} skills={_paths('.agents/skills','SKILL.md')}"
+    role = "You are tiny zero-dependency and concise/brief coding agent. Work until done/interrupted; double-check commands."
+    return f"{role}\nenvironment: {env}\ncontext: {ctx}"
+
+def agentic_loop(config: Config):
+    pass
 
 if __name__ == "__main__":
     # done = threading.Event()
@@ -47,4 +60,5 @@ if __name__ == "__main__":
     # finally:
     #     done.set(); spinner.join()
     config = Config()
-    print(config)
+
+    print(build_system_prompt(config))
