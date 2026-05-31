@@ -9,6 +9,7 @@ Principles:
 - Prefer `rg` for search when available.
 - Run narrow verification commands.
 - Stop only when done, blocked, or interrupted.
+- The codebase should be under ~700 lines of code. (but without sacrificing readability or maintainability
 
 Project goals:
 - Avoid framework or package dependencies.

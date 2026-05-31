@@ -1,6 +1,7 @@
 # choom.py
 
-A tiny zero-dependency coding agent in one Python file.
+A tiny coding agent with zero runtime dependencies.
+Development checks use Ruff via `uv`.
 
 WARNING: this was created for educational purposes, not meant for actual use. Agent can run shell commands and has no sandbox.
 
@@ -19,6 +20,16 @@ cat agent_sessions.json
 ```
 
 It logs prompts, exact API request payloads, responses, tool results, errors, and final answers.
+
+Checks:
+
+```sh
+uv run ruff check .
+uv run ruff format --check .
+uv run --script scripts/check_source.py
+```
+
+Override source limits with `SOURCE_LINE_LIMIT` and `SOURCE_COMPLEXITY_LIMIT`.
 
 ## Step-by-step build
 
