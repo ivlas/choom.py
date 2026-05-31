@@ -38,14 +38,16 @@ def spinner(done, text="thinking", size=15, levels="⣀⣤⣶⣷⣿", empty=" ")
         print("\r  [" + "".join(cell(x) for x in range(size)) + "]\33[K", end="", file=sys.stderr, flush=True)
     print("\r\33[K", end="", file=sys.stderr, flush=True)
 
-def _paths(path, pattern=None):
-    p = Path(path)
-    xs = sorted(x.resolve() for x in p.rglob(pattern)) if pattern and p.exists() else []
-    return ", ".join(map(str, xs)) if pattern and xs else str(p.resolve()) if p.exists() else f"no {path} defined"
+def collect_files(config: Config) -> dict[str, str]:
+    root = Path(config.working_dir); paths = [root / "README.md", root / "AGENTS.md"]
+    skills = root / ".agents/skills"
+    if skills.exists(): paths += sorted(skills.rglob("SKILL.md"))
+    return {str(p.resolve()): p.read_text() for p in paths if p.exists()}
 
 def build_system_prompt(config: Config) -> str:
+    files = collect_files(config); find = lambda s: ", ".join(p for p in files if p.endswith(s)) or f"no {s} defined"
     env = f"cwd={config.working_dir} os={sys.platform} py={sys.version.split()[0]} shell={os.getenv('SHELL','?')}"
-    ctx = f"readme={_paths('README.md')} agents={_paths('AGENTS.md')} skills={_paths('.agents/skills','SKILL.md')}"
+    ctx = f"readme={find('README.md')} agents={find('AGENTS.md')} skills={find('SKILL.md')}"
     role = "You are tiny zero-dependency and concise/brief coding agent. Work until done/interrupted; double-check commands."
     return f"{role}\nenvironment: {env}\ncontext: {ctx}"
 
@@ -61,4 +63,5 @@ if __name__ == "__main__":
     #     done.set(); spinner.join()
     config = Config()
 
-    print(build_system_prompt(config))
+    # print(build_system_prompt(config))
+    print(collect_files(config=config))
