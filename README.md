@@ -8,7 +8,7 @@ WARNING: this was created for educational purposes, not meant for actual use. Ag
 Run:
 
 ```sh
-OPENROUTER_API_KEY="..." MODEL="minimax/minimax-m2.7" python3 choom.py
+OPENROUTER_API_KEY="..." MODEL="minimax/minimax-m2.7" python3 -m choom
 ```
 
 Use `AGENT_APPROVE=all` to run shell commands without asking.
@@ -26,7 +26,7 @@ Checks:
 ```sh
 uv run ruff check .
 uv run ruff format --check .
-uv run --script scripts/check_source.py
+uv run --script scripts/check_source.py [paths...]
 ```
 
 Override source limits with `SOURCE_LINE_LIMIT` and `SOURCE_COMPLEXITY_LIMIT`.
@@ -58,7 +58,7 @@ Override source limits with `SOURCE_LINE_LIMIT` and `SOURCE_COMPLEXITY_LIMIT`.
    Call the model, include REPL transcript context, run requested tool calls, append results, repeat until final or limits.
 
 9. Add the REPL
-   Start with `python3 choom.py`, type a task, exit with `/exit`.
+   Start with `python3 -m choom`, type a task, exit with `/exit`.
 
 10. Add session logs
     Write the full run to `./agent_sessions.json` for debugging and replay.

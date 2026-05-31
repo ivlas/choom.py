@@ -1,3 +1,4 @@
+import argparse
 import ast
 import os
 import sys
@@ -6,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LINE_LIMIT = int(os.getenv("SOURCE_LINE_LIMIT", "700"))
-COMPLEXITY_LIMIT = int(os.getenv("SOURCE_COMPLEXITY_LIMIT", "16"))
+COMPLEXITY_LIMIT = int(os.getenv("SOURCE_COMPLEXITY_LIMIT", "12"))
 
 
 @dataclass
@@ -17,53 +18,103 @@ class FunctionComplexity:
     complexity: int
 
 
-def app_source_paths() -> list[Path]:
-    paths = []
-    single_file = ROOT / "choom.py"
-    package_dir = ROOT / "choom"
+@dataclass
+class SourceFile:
+    path: Path
+    text: str
+    tree: ast.Module
 
-    if single_file.exists():
-        paths.append(single_file)
-    if package_dir.exists():
-        paths.extend(sorted(package_dir.rglob("*.py")))
+
+class ComplexityCounter(ast.NodeVisitor):
+    def __init__(self) -> None:
+        self.value = 1
+
+    def visit_BoolOp(self, node: ast.BoolOp) -> None:
+        self.value += max(0, len(node.values) - 1)
+        self.generic_visit(node)
+
+    def visit_If(self, node: ast.If) -> None:
+        self.value += 1
+        self.generic_visit(node)
+
+    def visit_IfExp(self, node: ast.IfExp) -> None:
+        self.value += 1
+        self.generic_visit(node)
+
+    def visit_For(self, node: ast.For) -> None:
+        self.value += 1
+        self.generic_visit(node)
+
+    def visit_AsyncFor(self, node: ast.AsyncFor) -> None:
+        self.value += 1
+        self.generic_visit(node)
+
+    def visit_While(self, node: ast.While) -> None:
+        self.value += 1
+        self.generic_visit(node)
+
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+        self.value += 1
+        self.generic_visit(node)
+
+    def visit_Match(self, node: ast.Match) -> None:
+        self.value += max(0, len(node.cases) - 1)
+        self.generic_visit(node)
+
+    def visit_ListComp(self, node: ast.ListComp) -> None:
+        self.value += sum(len(generator.ifs) for generator in node.generators)
+        self.generic_visit(node)
+
+    visit_SetComp = visit_ListComp
+    visit_DictComp = visit_ListComp
+    visit_GeneratorExp = visit_ListComp
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        return
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+
+def source_paths(names: list[str]) -> list[Path]:
+    paths = []
+
+    for name in names:
+        path = ROOT / name
+        if path.is_file():
+            paths.append(path)
+        elif path.is_dir():
+            paths.extend(sorted(path.rglob("*.py")))
 
     return paths
 
 
-def source_lines(path: Path) -> int:
-    count = 0
-    for line in path.read_text().splitlines():
-        stripped = line.strip()
-        if stripped and not stripped.startswith("#"):
-            count += 1
-    return count
+def source_files(names: list[str]) -> list[SourceFile]:
+    files = []
+    for path in source_paths(names):
+        text = path.read_text()
+        files.append(SourceFile(path, text, ast.parse(text, filename=str(path))))
+    return files
 
 
-def decision_points(node: ast.AST) -> int:
-    if isinstance(node, ast.BoolOp):
-        return max(0, len(node.values) - 1)
-    if isinstance(node, (ast.If, ast.IfExp, ast.For, ast.AsyncFor, ast.While, ast.ExceptHandler)):
-        return 1
-    if isinstance(node, ast.Match):
-        return max(0, len(node.cases) - 1)
-    if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
-        return sum(len(generator.ifs) for generator in node.generators)
-    return 0
+def source_lines(text: str) -> int:
+    return sum(1 for line in text.splitlines() if line.strip() and not line.strip().startswith("#"))
 
 
 def function_complexity(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
-    return 1 + sum(decision_points(child) for child in ast.walk(node))
+    counter = ComplexityCounter()
+    for child in node.body:
+        counter.visit(child)
+    return counter.value
 
 
-def complex_functions(path: Path) -> list[FunctionComplexity]:
-    tree = ast.parse(path.read_text(), filename=str(path))
+def complex_functions(source: SourceFile) -> list[FunctionComplexity]:
     functions = []
 
-    for node in ast.walk(tree):
+    for node in ast.walk(source.tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             functions.append(
                 FunctionComplexity(
-                    path=path,
+                    path=source.path,
                     name=node.name,
                     line=node.lineno,
                     complexity=function_complexity(node),
@@ -73,14 +124,21 @@ def complex_functions(path: Path) -> list[FunctionComplexity]:
     return functions
 
 
-def main() -> int:
-    paths = app_source_paths()
-    if not paths:
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("paths", nargs="*", default=["choom.py", "choom"])
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(sys.argv[1:] if argv is None else argv)
+    files = source_files(args.paths)
+    if not files:
         print("source check failed: no source files found", file=sys.stderr)
         return 1
 
-    total_lines = sum(source_lines(path) for path in paths)
-    functions = [item for path in paths for item in complex_functions(path)]
+    total_lines = sum(source_lines(source.text) for source in files)
+    functions = [item for source in files for item in complex_functions(source)]
     too_complex = [item for item in functions if item.complexity > COMPLEXITY_LIMIT]
 
     print(f"app source lines: {total_lines} / {LINE_LIMIT}")
@@ -94,7 +152,10 @@ def main() -> int:
         print("source check failed: functions over complexity limit:", file=sys.stderr)
         for item in sorted(too_complex, key=lambda value: value.complexity, reverse=True):
             relative = item.path.relative_to(ROOT)
-            print(f"  {relative}:{item.line} {item.name} complexity={item.complexity}", file=sys.stderr)
+            print(
+                f"  {relative}:{item.line} {item.name} complexity={item.complexity}",
+                file=sys.stderr,
+            )
         return 1
 
     return 0
