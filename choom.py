@@ -1,4 +1,8 @@
-import sys, os, json, subprocess, threading, urllib.request, urllib.error, select, termios, tty, time, shutil
+import sys, os, json, subprocess, threading, urllib.request, urllib.error, select, time, shutil
+try:
+    import termios, tty
+except ImportError:
+    termios = tty = None
 from dataclasses import dataclass, field
 from itertools import count
 from math import sin
@@ -58,6 +62,7 @@ def prompt_line(config: Config, buf: str, i: int, width=None) -> str:
 
 def prompt_input(config: Config) -> str:
     if not sys.stdin.isatty(): return input()
+    if os.name == "nt" or termios is None or tty is None: return input("> ")
     fd = sys.stdin.fileno(); old = termios.tcgetattr(fd); buf = ""; done = False
     try:
         tty.setcbreak(fd)
@@ -85,7 +90,7 @@ def collect_files(config: Config, trace_reads=True) -> dict[str, str]:
 
 def build_system_prompt(config: Config, files=None) -> str:
     files = files or collect_files(config); find = lambda s: ", ".join(p for p in files if p.endswith(s)) or f"no {s} defined"
-    env = f"cwd={config.working_dir} os={sys.platform} py={sys.version.split()[0]} shell={os.getenv('SHELL','?')}"
+    env = f"cwd={config.working_dir} os={sys.platform} py={sys.version.split()[0]} shell={os.getenv('SHELL') or os.getenv('COMSPEC', '?')}"
     ctx = f"readme={find('README.md')} agents={find('AGENTS.md')} skills={find('SKILL.md')}"
     role = "You are a tiny shell coding agent. Use execute_shell to inspect/edit/test. Stay inside cwd. Be concise."
     return f"{role}\nenvironment: {env}\ncontext: {ctx}"
