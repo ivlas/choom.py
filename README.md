@@ -18,7 +18,7 @@ Inspect sessions:
 cat agent_sessions.json
 ```
 
-It logs prompts, exact API request payloads, responses, actions, tool results, and final answers.
+It logs prompts, exact API request payloads, responses, tool results, errors, and final answers.
 
 ## Step-by-step build
 
@@ -26,7 +26,7 @@ It logs prompts, exact API request payloads, responses, actions, tool results, a
    Keep all runtime settings in one dataclass: API key, model, working dir, approval mode, token limits.
 
 2. Add the spinner
-   Show activity states in the terminal: `prompt`, `thinking`, and `running`.
+   Show activity states and approximate next-request tokens in the terminal.
 
 3. Add local context
    `collect_files()` loads `README.md`, `AGENTS.md`, and `.agents/skills/**/SKILL.md`.
@@ -35,19 +35,22 @@ It logs prompts, exact API request payloads, responses, actions, tool results, a
    Include cwd, OS, Python version, shell, and paths to discovered context files.
 
 5. Add shell execution
-   `execute_shell()` runs commands with `subprocess.run`, cwd, timeout, approval, and output truncation.
+   `execute_shell()` runs commands with approval, cwd validation, timeout, visible output, and output truncation.
 
 6. Add the model call
    `call_model()` sends a minimal Responses API request with `urllib.request`.
 
-7. Add the action parser
-   The model returns either `{"cmd":"..."}` or `{"final":"..."}`.
+7. Add function tools
+   The model can call `execute_shell` with `command`, `description`, `cwd`, `timeout`, and `env`.
 
 8. Add the agent loop
-   Call the model, run requested commands, append results, repeat until final or limits.
+   Call the model, include REPL transcript context, run requested tool calls, append results, repeat until final or limits.
 
 9. Add the REPL
    Start with `python3 choom.py`, type a task, exit with `/exit`.
 
 10. Add session logs
     Write the full run to `./agent_sessions.json` for debugging and replay.
+
+11. Add live trace
+    Print reads, API calls, and shell commands as they happen.
