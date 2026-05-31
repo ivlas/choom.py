@@ -1,6 +1,22 @@
-import sys, threading, time
+import sys, os, threading, time
+from dataclasses import dataclass, field
 from itertools import count
 from math import sin
+from pathlib import Path
+
+def _ignore() -> frozenset[str]:
+    text = Path(".gitignore").read_text() if Path(".gitignore").exists() else ""
+    return frozenset({p for x in text.splitlines() if (p := x.strip().strip("/")) and not p.startswith(("#", "!"))} | {".git"})
+
+@dataclass(frozen=True)
+class Config:
+    url: str = os.getenv("URL", "https://openrouter.ai/api/v1/responses")
+    model: str = os.getenv("MODEL", "openai/gpt-5.5")
+    steps_limit: int = int(os.getenv("AGENT_STEPS_LIMIT", "200"))
+    approve_mode: bool = os.getenv("AGENT_APPROVE", "").lower() == "all"
+    sessions: str = os.path.expanduser(os.getenv("AGENT_SESSIONS", "~/.agent_sessions.json"))
+    working_dir: str = field(default_factory=os.getcwd)
+    ignore: frozenset[str] = field(default_factory=_ignore)
 
 def spinner(done, text="thinking", size=15, levels="⣀⣤⣶⣷⣿", empty=" "):
     if not sys.stderr.isatty(): return
@@ -24,9 +40,11 @@ def spinner(done, text="thinking", size=15, levels="⣀⣤⣶⣷⣿", empty=" ")
 
 
 if __name__ == "__main__":
-    done = threading.Event()
-    (spinner := threading.Thread(target=spinner, args=(done,))).start()
-    try:
-        while True: time.sleep(1)
-    finally:
-        done.set(); spinner.join()
+    # done = threading.Event()
+    # (spinner := threading.Thread(target=spinner, args=(done,))).start()
+    # try:
+    #     while True: time.sleep(1)
+    # finally:
+    #     done.set(); spinner.join()
+    config = Config()
+    print(config)
