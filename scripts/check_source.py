@@ -65,14 +65,23 @@ class ComplexityCounter(ast.NodeVisitor):
         self.value += sum(len(generator.ifs) for generator in node.generators)
         self.generic_visit(node)
 
-    visit_SetComp = visit_ListComp
-    visit_DictComp = visit_ListComp
-    visit_GeneratorExp = visit_ListComp
+    def visit_SetComp(self, node: ast.SetComp) -> None:
+        self.value += sum(len(generator.ifs) for generator in node.generators)
+        self.generic_visit(node)
+
+    def visit_DictComp(self, node: ast.DictComp) -> None:
+        self.value += sum(len(generator.ifs) for generator in node.generators)
+        self.generic_visit(node)
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
+        self.value += sum(len(generator.ifs) for generator in node.generators)
+        self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         return
 
-    visit_AsyncFunctionDef = visit_FunctionDef
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        return
 
 
 def source_paths(names: list[str]) -> list[Path]:

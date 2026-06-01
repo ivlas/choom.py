@@ -1,7 +1,7 @@
 # choom.py
 
 A tiny coding agent with zero runtime dependencies.
-Development checks use Ruff via `uv`.
+Development checks use Ruff and mypy via `uv`.
 
 WARNING: this was created for educational purposes, not meant for actual use. Agent can run shell commands and has no sandbox.
 
@@ -26,6 +26,7 @@ Checks:
 ```sh
 uv run ruff check .
 uv run ruff format --check .
+uv run mypy
 uv run --script scripts/check_source.py [paths...]
 ```
 

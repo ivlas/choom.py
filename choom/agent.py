@@ -103,8 +103,10 @@ def call_model(
 
     status = f"[{used} / {config.session_token_limit}]"
     try:
-        with running_spinner("thinking", fixed=True, status=status), urllib.request.urlopen(request) as response:
+        with running_spinner("thinking", status=status), urllib.request.urlopen(request) as response:
             data = json.load(response)
+        if not isinstance(data, dict):
+            return {"output_text": "api error: response was not an object"}
         log_event(config, sid, "api_response", data)
         return data
     except urllib.error.HTTPError as error:

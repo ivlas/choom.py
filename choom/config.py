@@ -1,20 +1,21 @@
 import json
 import os
 from dataclasses import dataclass, field
+from typing import Any
 
 History = list[tuple[str, str]]
 
 
-def env(name: str, default: str):
+def env(name: str, default: str) -> Any:
     return field(default_factory=lambda: os.getenv(name, default))
 
 
-def env_int(name: str, default: int):
+def env_int(name: str, default: int) -> Any:
     return field(default_factory=lambda: int(os.getenv(name, str(default))))
 
 
 def api_key() -> str:
-    return os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY", "")
+    return os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
 
 
 @dataclass

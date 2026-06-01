@@ -8,6 +8,7 @@ dependencies = []
 
 [dependency-groups]
 dev = [
+    "mypy>=2.1.0",
     "ruff>=0.15.15",
 ]
 
@@ -15,6 +16,11 @@ dev = [
 target-version = "py310"
 line-length = 120
 src = ["choom", "scripts"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["choom", "scripts/check_source.py"]
 
 [tool.ruff.lint]
 select = [

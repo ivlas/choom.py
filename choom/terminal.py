@@ -1,21 +1,25 @@
+import importlib
 import os
 import select
 import shutil
 import sys
+from collections.abc import Iterator
 from contextlib import contextmanager
 from itertools import count
 from math import sin
 from threading import Event, Thread
+from types import ModuleType
 from typing import TextIO
 
-try:
-    import termios
-    import tty
-except ImportError:
-    termios = None
-    tty = None
-
 from .config import Config, tokens
+
+termios: ModuleType | None = None
+tty: ModuleType | None = None
+try:
+    termios = importlib.import_module("termios")
+    tty = importlib.import_module("tty")
+except ImportError:
+    pass
 
 SPINNER_PALETTE = ("38;5;52", "38;5;88", "38;5;124", "38;5;160", "38;5;196", "38;5;203", "38;5;196", "38;5;160")
 
@@ -32,9 +36,7 @@ def spinner_line(
     empty: str = " ",
     fixed: bool = False,
 ) -> str:
-    limit = size - len(text)
-    position = index % (limit * 2) if limit > 0 else 0
-    start = max(0, limit // 2) if fixed else min(position, max(0, limit * 2 - position))
+    start = max(0, (size - len(text)) // 2) if fixed else index % (size + len(text)) - len(text) + 1
 
     def cell(x: int) -> str:
         if start <= x < start + len(text):
@@ -81,7 +83,7 @@ def spinner(done: Event, text: str = "thinking", fixed: bool = False, status: st
 
 
 @contextmanager
-def running_spinner(text: str, fixed: bool = False, status: str = ""):
+def running_spinner(text: str, fixed: bool = False, status: str = "") -> Iterator[None]:
     done = Event()
     thread = Thread(target=spinner, args=(done, text), kwargs={"fixed": fixed, "status": status})
     thread.start()
