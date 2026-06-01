@@ -14,6 +14,10 @@ def env_int(name: str, default: int) -> Any:
     return field(default_factory=lambda: int(os.getenv(name, str(default))))
 
 
+def env_bool(name: str) -> Any:
+    return field(default_factory=lambda: os.getenv(name, "").lower() in ("1", "true", "yes", "on"))
+
+
 def api_key() -> str:
     return os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
 
@@ -27,10 +31,13 @@ class Config:
     max_output_tokens: int = env_int("MAX_OUTPUT_TOKENS", 1024)
     max_tool_chars: int = env_int("MAX_TOOL_CHARS", 8192)
     session_token_limit: int = env_int("SESSION_TOKEN_LIMIT", 65536)
+    stream: bool = env_bool("AGENT_STREAM")
+    reasoning_summary: str = env("AGENT_REASONING", "")
     approve_mode: str = field(default_factory=lambda: os.getenv("AGENT_APPROVE", "ask").lower())
     sessions: str = env("AGENT_SESSIONS", "agent_sessions.json")
     working_dir: str = field(default_factory=os.getcwd)
     current_tokens: int = 0
+    streamed_output: bool = False
 
 
 def tokens(value: object) -> int:

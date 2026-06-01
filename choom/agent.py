@@ -4,6 +4,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -92,6 +93,10 @@ def call_model(
     }
     if previous:
         body["previous_response_id"] = previous
+    if config.reasoning_summary:
+        body["reasoning"] = {"summary": config.reasoning_summary}
+    if config.stream:
+        body["stream"] = True
 
     log_event(config, sid, "api_request", body)
     headers = {
@@ -100,6 +105,9 @@ def call_model(
     }
     request = urllib.request.Request(config.url, json.dumps(body).encode(), headers)
     trace(f"api {config.model} [{used} / {config.session_token_limit}]")
+
+    if config.stream:
+        return stream_model(config, request, sid)
 
     status = f"[{used} / {config.session_token_limit}]"
     try:
@@ -117,6 +125,47 @@ def call_model(
     except Exception as error:
         log_event(config, sid, "api_error", str(error))
         raise
+
+
+def stream_model(config: Config, request: urllib.request.Request, sid: str) -> Response:
+    final: Response = {}
+    config.streamed_output = False
+    try:
+        with urllib.request.urlopen(request) as response:
+            for event in sse_events(response):
+                kind = event.get("type")
+                if kind == "response.output_text.delta":
+                    print(event.get("delta", ""), end="", file=sys.stderr, flush=True)
+                    config.streamed_output = True
+                elif kind == "response.reasoning_summary_text.delta":
+                    print("\n# reasoning: " + str(event.get("delta", "")), end="", file=sys.stderr, flush=True)
+                elif kind == "response.completed" and isinstance(event.get("response"), dict):
+                    final = event["response"]
+        if final:
+            print(file=sys.stderr)
+            log_event(config, sid, "api_response", final)
+            return final
+        return {"output_text": "api error: stream completed without final response"}
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode(errors="replace")
+        message = f"HTTP {error.code}: {detail or error.reason}"
+        log_event(config, sid, "api_error", message)
+        return {"output_text": f"api error: {message}"}
+
+
+def sse_events(response: Any) -> Iterator[Response]:
+    data = []
+    for raw in response:
+        line = raw.decode(errors="replace").rstrip("\n")
+        if line.startswith("data: "):
+            data.append(line[6:])
+        elif not line and data:
+            text = "\n".join(data)
+            data.clear()
+            if text != "[DONE]":
+                event = json.loads(text)
+                if isinstance(event, dict):
+                    yield event
 
 
 def response_text(response: Response) -> str:

@@ -27,7 +27,8 @@ def repl(config: Config) -> None:
         if prompt:
             answer = agentic_loop(config, prompt, history)
             history.append((prompt, answer))
-            print(answer)
+            if not config.streamed_output:
+                print(answer)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -39,7 +40,9 @@ def main(argv: list[str] | None = None) -> int:
     config = Config()
 
     if args:
-        print(agentic_loop(config, " ".join(args)))
+        answer = agentic_loop(config, " ".join(args))
+        if not config.streamed_output:
+            print(answer)
     else:
         repl(config)
 

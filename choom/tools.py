@@ -145,9 +145,27 @@ def tool_output(config: Config, call: ToolCall) -> dict[str, str]:
 def execute_tool(config: Config, call: ToolCall, args: object) -> str:
     if call.get("name") != "execute_shell":
         return "unknown tool"
-    if not isinstance(args, dict):
-        return "bad arguments: expected object"
-    return execute_shell(config, **args)
+
+    match args:
+        case {"command": str(command), **rest}:
+            description = rest.pop("description", "")
+            cwd = rest.pop("cwd", None)
+            timeout = rest.pop("timeout", 120)
+            env = rest.pop("env", None)
+        case _:
+            return "bad arguments: missing string command"
+
+    match description, cwd, timeout, env, rest:
+        case str(), (str() | None), int(), (dict() | None), {} if valid_env(env):
+            return execute_shell(config, command, description, cwd, timeout, env)
+        case _:
+            return "bad arguments: expected command, description, cwd, timeout, env"
+
+
+def valid_env(env: object) -> bool:
+    return env is None or (
+        isinstance(env, dict) and all(isinstance(k, str) and isinstance(v, str) for k, v in env.items())
+    )
 
 
 def call_command(call: ToolCall) -> str:
