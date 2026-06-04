@@ -11,6 +11,12 @@ Run:
 OPENROUTER_API_KEY="..." MODEL="minimax/minimax-m2.7" python3 -m choom
 ```
 
+With local llama.cpp:
+
+```sh
+URL="http://127.0.0.1:8080/v1/chat/completions" MODEL="gemma-4-12b" python3 -m choom
+```
+
 Use `AGENT_APPROVE=all` to run shell commands without asking.
 Use `AGENT_STREAM=1` to show generated text as it arrives.
 Use `AGENT_REASONING=auto` to request and show reasoning summaries when the model supports them.

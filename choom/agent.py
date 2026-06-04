@@ -73,6 +73,23 @@ def prompt_action(prompt: str) -> dict[str, str] | None:
     return None
 
 
+def chat_body(config: Config, instructions: str, payload: object) -> dict[str, object]:
+    return {
+        "model": config.model,
+        "messages": [
+            {"role": "system", "content": instructions},
+            {"role": "user", "content": payload if isinstance(payload, str) else json.dumps(payload)},
+        ],
+        "tools": [{"type": "function", "function": {key: TOOL[key] for key in ("name", "description", "parameters")}}],
+        "max_tokens": config.max_output_tokens,
+    }
+
+
+def require_api_key(config: Config) -> None:
+    if not config.api_key:
+        raise SystemExit("set OPENROUTER_API_KEY")
+
+
 def call_model(
     config: Config,
     instructions: str,
@@ -81,9 +98,8 @@ def call_model(
     used: int,
     previous: str | None = None,
 ) -> Response:
-    if not config.api_key:
-        raise SystemExit("set OPENROUTER_API_KEY")
-
+    require_api_key(config)
+    is_chat = config.url.rstrip("/").endswith("/chat/completions")
     body: dict[str, object] = {
         "model": config.model,
         "instructions": instructions,
@@ -98,6 +114,9 @@ def call_model(
     if config.stream:
         body["stream"] = True
 
+    if is_chat:
+        body = chat_body(config, instructions, payload)
+
     log_event(config, sid, "api_request", body)
     headers = {
         "Authorization": f"Bearer {config.api_key}",
@@ -106,7 +125,7 @@ def call_model(
     request = urllib.request.Request(config.url, json.dumps(body).encode(), headers)
     trace(f"api {config.model} [{used} / {config.session_token_limit}]")
 
-    if config.stream:
+    if config.stream and not is_chat:
         return stream_model(config, request, sid)
 
     status = f"[{used} / {config.session_token_limit}]"
@@ -116,6 +135,8 @@ def call_model(
         if not isinstance(data, dict):
             return {"output_text": "api error: response was not an object"}
         log_event(config, sid, "api_response", data)
+        if is_chat:
+            return chat_response(data)
         return data
     except urllib.error.HTTPError as error:
         detail = error.read().decode(errors="replace")
@@ -125,6 +146,16 @@ def call_model(
     except Exception as error:
         log_event(config, sid, "api_error", str(error))
         raise
+
+
+def chat_response(data: Response) -> Response:
+    message = data["choices"][0]["message"]
+    data["store"] = False
+    data["output_text"] = message.get("content") or ""
+    data["output"] = [
+        {"type": "function_call", "call_id": call["id"], **call["function"]} for call in message.get("tool_calls") or []
+    ]
+    return data
 
 
 def stream_model(config: Config, request: urllib.request.Request, sid: str) -> Response:

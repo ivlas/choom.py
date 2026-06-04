@@ -8,6 +8,7 @@ Principles:
 - Use only Python standard library.
 - Prefer `rg` for search when available.
 - Run narrow verification commands.
+- Commit messages use Conventional Commit prefixes like `feat:`, `fix:`, `chore:`, or `refactor:` with a short imperative summary.
 - For Python changes, run `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, and `uv run --script scripts/check_source.py`.
 - Stop only when done, blocked, or interrupted.
 - The codebase should be under ~700 lines of code. (but without sacrificing readability or maintainability

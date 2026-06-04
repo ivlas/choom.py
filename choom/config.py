@@ -19,7 +19,9 @@ def env_bool(name: str) -> Any:
 
 
 def api_key() -> str:
-    return os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
+    key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
+    local = os.getenv("URL", "").startswith(("http://localhost", "http://127.0.0.1", "http://[::1]"))
+    return key or ("local" if local else "")
 
 
 @dataclass
