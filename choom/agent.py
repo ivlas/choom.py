@@ -5,6 +5,7 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -48,7 +49,10 @@ def build_system_prompt(config: Config, files: dict[str, str] | None = None) -> 
     shell = os.getenv("SHELL") or os.getenv("COMSPEC", "?")
     env = f"cwd={config.working_dir} os={sys.platform} py={sys.version.split()[0]} shell={shell}"
     ctx = f"readme={find('README.md')} agents={find('AGENTS.md')} skills={find('SKILL.md')}"
-    role = "You are a tiny shell coding agent. Use execute_shell to inspect/edit/test. Stay inside cwd. Be concise."
+    role = (
+        f"Today's date is {date.today().isoformat()}."
+        "You are a tiny shell coding agent. Use execute_shell to inspect/edit/test. Stay inside cwd. Be concise."
+    )
     return f"{role}\nenvironment: {env}\ncontext: {ctx}"
 
 
