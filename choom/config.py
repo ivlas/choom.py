@@ -3,8 +3,6 @@ import os
 from dataclasses import dataclass, field
 from typing import Any
 
-History = list[tuple[str, str]]
-
 
 def env(name: str, default: str) -> Any:
     return field(default_factory=lambda: os.getenv(name, default))
@@ -35,7 +33,6 @@ class Config:
     session_token_limit: int = env_int("SESSION_TOKEN_LIMIT", 65536)
     stream: bool = env_bool("AGENT_STREAM")
     reasoning_summary: str = env("AGENT_REASONING", "")
-    approve_mode: str = field(default_factory=lambda: os.getenv("AGENT_APPROVE", "ask").lower())
     sessions: str = env("AGENT_SESSIONS", "agent_sessions.json")
     working_dir: str = field(default_factory=os.getcwd)
     current_tokens: int = 0

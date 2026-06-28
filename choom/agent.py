@@ -8,14 +8,13 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-from .config import Config, History, tokens
+from .config import Config, tokens
 from .terminal import highlight_commands, running_spinner, trace
 from .tools import (
     TOOL,
     ToolCall,
     call_command,
     denied,
-    execute_shell,
     quiet_success,
     tool_output,
     tool_summary,
@@ -60,19 +59,6 @@ def log_event(config: Config, sid: str, event: str, data: object) -> None:
     path.write_text(json.dumps(log, indent=2))
 
 
-def prompt_action(prompt: str) -> dict[str, str] | None:
-    text = prompt.strip()
-    if text.startswith("run "):
-        return {"cmd": text[4:]}
-    if text.startswith(("cat ", "ls ", "pwd", "find ", "rg ", "sed ")):
-        return {"cmd": text}
-
-    if "agent_sessions.json" in text and any(word in text.lower() for word in ("read", "content", "show")):
-        return {"cmd": "cat agent_sessions.json"}
-
-    return None
-
-
 def chat_body(config: Config, instructions: str, payload: object) -> dict[str, object]:
     return {
         "model": config.model,
@@ -95,7 +81,6 @@ def call_model(
     instructions: str,
     payload: object,
     sid: str,
-    used: int,
     previous: str | None = None,
 ) -> Response:
     require_api_key(config)
@@ -123,14 +108,13 @@ def call_model(
         "Content-Type": "application/json",
     }
     request = urllib.request.Request(config.url, json.dumps(body).encode(), headers)
-    trace(f"api {config.model} [{used} / {config.session_token_limit}]")
+    trace(f"api {config.model}")
 
     if config.stream and not is_chat:
         return stream_model(config, request, sid)
 
-    status = f"[{used} / {config.session_token_limit}]"
     try:
-        with running_spinner("thinking", status=status), urllib.request.urlopen(request) as response:
+        with running_spinner("thinking"), urllib.request.urlopen(request) as response:
             data = json.load(response)
         if not isinstance(data, dict):
             return {"output_text": "api error: response was not an object"}
@@ -223,41 +207,25 @@ def multi_step_prompt(prompt: str) -> bool:
     return any(mark in text for mark in (" then ", " and ", ",", ";", " after ", " also ", "\n"))
 
 
-def history_text(history: History) -> str:
-    return "\n\n".join(f"User: {prompt}\nAssistant: {answer}" for prompt, answer in history)
-
-
-def payload_text(files: dict[str, str], prompt: str, history: History | None = None) -> str:
-    past = f"\n\nPrevious conversation:\n{history_text(history)}" if history else ""
+def payload_text(files: dict[str, str], prompt: str) -> str:
     context = "\n\n".join(f"# {path}\n{text}" for path, text in files.items())
-    return context + past + f"\n\nUser: {prompt}"
+    return context + f"\n\nUser: {prompt}"
 
 
-def followup_payload(
-    files: dict[str, str],
-    prompt: str,
-    tool_results: list[str],
-    history: History | None = None,
-) -> str:
+def followup_payload(files: dict[str, str], prompt: str, tool_results: list[str]) -> str:
     results = "\n\n".join(f"Tool result {index}:\n{result}" for index, result in enumerate(tool_results, 1))
     instruction = (
         "Continue from these results. Do not repeat a command that already succeeded unless the "
         "user explicitly asked to verify. If the task is complete, answer briefly. If more work "
         "is needed, call execute_shell again."
     )
-    return payload_text(files, prompt, history) + f"\n\nTool results so far:\n{results}\n\n{instruction}"
+    return payload_text(files, prompt) + f"\n\nTool results so far:\n{results}\n\n{instruction}"
 
 
 def function_calls(response: Response) -> list[ToolCall]:
     return [
         item for item in response.get("output", []) if isinstance(item, dict) and item.get("type") == "function_call"
     ]
-
-
-def run_direct_action(config: Config, sid: str, command: str) -> str:
-    result = execute_shell(config, command, "user requested direct shell command")
-    log_event(config, sid, "tool_result", result)
-    return highlight_commands(result.strip(), sys.stdout)
 
 
 def final_answer(config: Config, sid: str, response: Response, last_tool: str) -> str:
@@ -288,17 +256,13 @@ def stop_with_answer(config: Config, sid: str, answer: str) -> str:
     return answer
 
 
-def agentic_loop(config: Config, prompt: str, history: History | None = None) -> str:
+def agentic_loop(config: Config, prompt: str) -> str:
     sid = str(int(time.time() * 1000))
     log_event(config, sid, "start", {"prompt": prompt})
 
-    action = prompt_action(prompt)
-    if action:
-        return run_direct_action(config, sid, action["cmd"])
-
     files = collect_files(config)
     instructions = build_system_prompt(config, files)
-    payload: object = payload_text(files, prompt, history)
+    payload: object = payload_text(files, prompt)
     previous = None
     last_tool = ""
     tool_results: list[str] = []
@@ -310,7 +274,7 @@ def agentic_loop(config: Config, prompt: str, history: History | None = None) ->
             log_event(config, sid, "stop", "session token limit reached")
             return "session token limit reached"
 
-        response = call_model(config, instructions, payload, sid, used, previous)
+        response = call_model(config, instructions, payload, sid, previous)
         calls = function_calls(response)
         if not calls:
             return final_answer(config, sid, response, last_tool)
@@ -332,7 +296,7 @@ def agentic_loop(config: Config, prompt: str, history: History | None = None) ->
         if response.get("store") is False:
             if quiet_success(last_tool) and not multi_step_prompt(prompt):
                 return stop_with_answer(config, sid, last_tool.strip() or "done")
-            payload = followup_payload(files, prompt, tool_results, history)
+            payload = followup_payload(files, prompt, tool_results)
             previous = None
         else:
             value = response.get("id")

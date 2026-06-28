@@ -1,25 +1,10 @@
-import importlib
-import os
-import select
-import shutil
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from itertools import count
 from math import sin
 from threading import Event, Thread
-from types import ModuleType
 from typing import TextIO
-
-from .config import Config, tokens
-
-termios: ModuleType | None = None
-tty: ModuleType | None = None
-try:
-    termios = importlib.import_module("termios")
-    tty = importlib.import_module("tty")
-except ImportError:
-    pass
 
 SPINNER_PALETTE = ("38;5;52", "38;5;88", "38;5;124", "38;5;160", "38;5;196", "38;5;203", "38;5;196", "38;5;160")
 
@@ -92,58 +77,3 @@ def running_spinner(text: str, fixed: bool = False, status: str = "") -> Iterato
     finally:
         done.set()
         thread.join()
-
-
-def prompt_line(config: Config, buffer: str, index: int, width: int | None = None) -> str:
-    status = f" [{config.current_tokens + tokens(buffer)} / {config.session_token_limit}] "
-    width = width or shutil.get_terminal_size((80, 20)).columns
-    available = max(0, width - 19 - len(status) - 1)
-    shown = buffer if len(buffer) <= available else ("<" + buffer[-available + 1 :] if available > 1 else "")
-    return "\r" + spinner_line("prompt", index, fixed=True) + status + shown + "\33[K"
-
-
-def apply_prompt_char(buffer: str, char: str) -> tuple[str, bool]:
-    match char:
-        case "\n" | "\r":
-            return buffer, True
-        case "\x03":
-            raise KeyboardInterrupt
-        case "\x04" if not buffer:
-            raise EOFError
-        case "\x7f" | "\b":
-            return buffer[:-1], False
-        case value if value >= " ":
-            return buffer + value, False
-        case _:
-            return buffer, False
-
-
-def prompt_input(config: Config) -> str:
-    if not sys.stdin.isatty():
-        return input()
-    if os.name == "nt" or termios is None or tty is None:
-        return input("> ")
-
-    fd = sys.stdin.fileno()
-    old = termios.tcgetattr(fd)
-    buffer = ""
-    done = False
-
-    try:
-        tty.setcbreak(fd)
-        for index in count():
-            print(prompt_line(config, buffer, index), end="", file=sys.stderr, flush=True)
-            if not select.select([sys.stdin], [], [], 0.075)[0]:
-                continue
-
-            buffer, submitted = apply_prompt_char(buffer, sys.stdin.read(1))
-            if submitted:
-                done = True
-                print(file=sys.stderr)
-                return buffer
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old)
-        if not done:
-            print("\r\33[K", end="", file=sys.stderr, flush=True)
-
-    return buffer

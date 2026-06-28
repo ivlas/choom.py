@@ -38,17 +38,11 @@ def approve(config: Config, args: dict[str, Any]) -> bool:
     print(f"\n# {args.get('description', 'run command')}", file=sys.stderr)
     print(command_line(str(args.get("command", "")), sys.stderr), file=sys.stderr)
 
-    if config.approve_mode == "all":
-        return True
-
     try:
-        choice = input("Approve? [y] yes  [a] all  [n] no: ").strip().lower()
+        choice = input("Approve? [y] yes  [n] no: ").strip().lower()
     except EOFError:
         return False
 
-    if choice in ("a", "all"):
-        config.approve_mode = "all"
-        return True
     return choice in ("y", "yes")
 
 

@@ -8,18 +8,18 @@ WARNING: this was created for educational purposes, not meant for actual use. Ag
 Run:
 
 ```sh
-OPENROUTER_API_KEY="..." MODEL="minimax/minimax-m2.7" python3 -m choom
+OPENROUTER_API_KEY="..." MODEL="minimax/minimax-m2.7" python3 -m choom "your prompt"
 ```
+
+Use `AGENT_STREAM=1` to show generated text as it arrives.
+Use `AGENT_REASONING=auto` to request and show reasoning summaries when the model supports them.
+Shell commands require per-command approval (`y`/`n`); there is no auto-approve mode.
 
 With local llama.cpp:
 
 ```sh
-URL="http://127.0.0.1:8080/v1/chat/completions" MODEL="gemma-4-12b" python3 -m choom
+URL="http://127.0.0.1:8080/v1/chat/completions" MODEL="gemma-4-12b" python3 -m choom "your prompt"
 ```
-
-Use `AGENT_APPROVE=all` to run shell commands without asking.
-Use `AGENT_STREAM=1` to show generated text as it arrives.
-Use `AGENT_REASONING=auto` to request and show reasoning summaries when the model supports them.
 
 Inspect sessions:
 
@@ -43,10 +43,10 @@ Override source limits with `SOURCE_LINE_LIMIT` and `SOURCE_COMPLEXITY_LIMIT`.
 ## Step-by-step build
 
 1. Add `Config`
-   Keep all runtime settings in one dataclass: API key, model, working dir, approval mode, token limits.
+   Keep all runtime settings in one dataclass: API key, model, working dir, token limits.
 
 2. Add the spinner
-   Show activity states and approximate next-request tokens in the terminal.
+   Show activity states in the terminal.
 
 3. Add local context
    `collect_files()` loads `README.md`, `AGENTS.md`, and `.agents/skills/**/SKILL.md`.
@@ -64,13 +64,10 @@ Override source limits with `SOURCE_LINE_LIMIT` and `SOURCE_COMPLEXITY_LIMIT`.
    The model can call `execute_shell` with `command`, `description`, `cwd`, `timeout`, and `env`.
 
 8. Add the agent loop
-   Call the model, include REPL transcript context, run requested tool calls, append results, repeat until final or limits.
+   Call the model, run requested tool calls, append results, repeat until final or limits.
 
-9. Add the REPL
-   Start with `python3 -m choom`, type a task, exit with `/exit`.
+9. Add session logs
+   Write the full run to `./agent_sessions.json` for debugging.
 
-10. Add session logs
-    Write the full run to `./agent_sessions.json` for debugging and replay.
-
-11. Add live trace
+10. Add live trace
     Print reads, API calls, and shell commands as they happen.
