@@ -5,6 +5,11 @@ Development checks use Ruff and mypy via `uv`.
 
 WARNING: this was created for educational purposes, not meant for actual use. Agent can run shell commands and has no sandbox.
 
+## Approach
+
+- One-shot, not interactive: prompt in, answer out, no REPL scaffolding.
+- Per-command approval kept simple (yes/no); there is no auto-approve mode.
+
 Run:
 
 ```sh
