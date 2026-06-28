@@ -7,7 +7,7 @@ WARNING: this was created for educational purposes, not meant for actual use. Ag
 
 ## Approach
 
-- One-shot, not interactive: prompt in, answer out, no REPL scaffolding.
+- Single invocation, not interactive: prompt in, answer out, no REPL scaffolding. The agent may still loop internally on tool calls until it reaches a final answer.
 - Per-command approval kept simple (yes/no); there is no auto-approve mode.
 
 Run:
