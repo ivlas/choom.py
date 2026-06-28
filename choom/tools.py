@@ -77,7 +77,8 @@ def execute_shell(
 
     try:
         with running_spinner("running", fixed=True):
-            trace(f"run {command}")
+            if config.verbose:
+                trace(f"run {command}")
             run_env = {**os.environ, **(env or {})}
             run_cwd, cwd_note = safe_cwd(config, cwd)
             process = subprocess.run(
@@ -132,7 +133,8 @@ def tool_output(config: Config, call: ToolCall) -> dict[str, str]:
     else:
         result = execute_tool(config, call, args)
 
-    show_tool_result(result)
+    if config.verbose:
+        show_tool_result(result)
     return {"type": "function_call_output", "call_id": str(call["call_id"]), "output": result}
 
 

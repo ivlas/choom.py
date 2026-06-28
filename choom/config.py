@@ -32,6 +32,7 @@ class Config:
     max_tool_chars: int = env_int("MAX_TOOL_CHARS", 8192)
     session_token_limit: int = env_int("SESSION_TOKEN_LIMIT", 65536)
     stream: bool = env_bool("AGENT_STREAM")
+    verbose: bool = env_bool("AGENT_VERBOSE")
     reasoning_summary: str = env("AGENT_REASONING", "")
     sessions: str = env("AGENT_SESSIONS", "agent_sessions.json")
     working_dir: str = field(default_factory=os.getcwd)

@@ -17,6 +17,7 @@ OPENROUTER_API_KEY="..." MODEL="minimax/minimax-m2.7" python3 -m choom "your pro
 ```
 
 Use `AGENT_STREAM=1` to show generated text as it arrives.
+By default shell command output is silent; set `AGENT_VERBOSE=1` to print the full `$ command\nexit N\n<stdout>` block as each command runs.
 Use `AGENT_REASONING=auto` to request and show reasoning summaries when the model supports them.
 Shell commands require per-command approval (`y`/`n`); there is no auto-approve mode.
 
