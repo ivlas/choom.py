@@ -43,4 +43,5 @@ htmlcov/
 *.sqlite3
 *.db
 agent_sessions.json
+.choom/
 .python-version
